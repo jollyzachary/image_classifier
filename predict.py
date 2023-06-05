@@ -4,8 +4,6 @@ from checkpoint import load_checkpoint
 from image_processing import process_image
 import label_mapping
 
-cat_to_name = label_mapping.load_label_mapping()
-
 def predict(image_path, model, topk=5):
     ''' Predict the class (or classes) of an image using a trained deep learning model.
     '''
@@ -31,19 +29,27 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Make a prediction with a trained model.')
     parser.add_argument('image_path', type=str, help='Path to the image')
     parser.add_argument('checkpoint', type=str, help='Path to the model checkpoint')
+    parser.add_argument('--gpu', action='store_true', help='Use GPU for prediction')
+    parser.add_argument('--category_names', type=str, help='Path to JSON file containing category names')
     args = parser.parse_args()
 
     # Load the checkpoint
     model, criterion, optimizer = load_checkpoint(args.checkpoint)
 
     # Define device
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
+
+    # Load category names
+    if args.category_names:
+        cat_to_name = label_mapping.load_label_mapping(args.category_names)
+    else:
+        cat_to_name = label_mapping.load_label_mapping()
 
     # Class prediction
     probs, classes, flowers = predict(args.image_path, model)
-
 
     # Print the results
     print("Probabilities:", probs)
     print("Classes:", classes)
     print("Flowers:", flowers)
+
