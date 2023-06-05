@@ -48,13 +48,6 @@ To use the image classification program, follow these steps:
 model = models.vgg16(pretrained=True)
 Make sure to comment out the line model = models.vgg16(weights=VGG16_Weights.DEFAULT) by adding a # at the beginning of the line, and uncomment the line model = models.vgg16(pretrained=True) by removing the # at the beginning of the line.
 
-Example Usage
-Here's an example of how to train the model on the flower dataset:
-
-bash
-Copy code
-python train.py flower_data --arch vgg16 --learning_rate 0.001 --hidden_units 120 --epochs 10 --gpu
-For more details on the available command-line arguments, refer to the documentation in the respective script files.
 
 Dependencies
 Python 3.x
