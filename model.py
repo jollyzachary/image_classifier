@@ -1,6 +1,6 @@
 from imports import *
 from image_processing import process_image
-from torchvision.models import vgg16
+from torchvision.models import vgg16, alexnet
 from torchvision.models.vgg import VGG16_Weights
 import label_mapping
 
@@ -8,9 +8,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 cat_to_name = label_mapping.load_label_mapping()
 
 def build_and_train_model(trainloader, validloader, arch, learning_rate, hidden_units, epochs, gpu):
-    # Load the pre-trained model
-    model = models.vgg16(weights=VGG16_Weights.DEFAULT)
-    #model = models.vgg16(pretrained=True)
+    # Load the pre-trained model based on the architecture specified
+    if arch == 'vgg16':
+        model = models.vgg16(weights=VGG16_Weights.DEFAULT)
+        #model = models.vgg16(pretrained=True)
+    elif arch == 'alexnet':
+        model = models.alexnet(pretrained=True)
+    else:
+        print(f"Unsupported architecture: {arch}")
+        return
 
     # Freeze the parameters of the pre-trained model
     for param in model.parameters():
