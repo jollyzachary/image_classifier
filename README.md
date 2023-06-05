@@ -43,10 +43,16 @@ To use the image classification program, follow these steps:
 > Note: The program uses the latest version of torchvision by default. However, if you prefer to use the deprecated version of torchvision, you can uncomment the relevant lines of code in `model.py` and comment out the corresponding lines. Here is an example:
 
 ```python
-# Load the pre-trained model
-# model = models.vgg16(weights=VGG16_Weights.DEFAULT)
-model = models.vgg16(pretrained=True)
-Make sure to comment out the line model = models.vgg16(weights=VGG16_Weights.DEFAULT) by adding a # at the beginning of the line, and uncomment the line model = models.vgg16(pretrained=True) by removing the # at the beginning of the line.
+def build_and_train_model(trainloader, validloader, arch, learning_rate, hidden_units, epochs, gpu):
+    # Load the pre-trained model based on the architecture specified
+    if arch == 'vgg16':
+        model = models.vgg16(weights=VGG16_Weights.DEFAULT)
+        #model = models.vgg16(pretrained=True)       # <<-- Torchvision depreciating version dependent
+    elif arch == 'alexnet':
+        model = models.alexnet(pretrained=True)
+    else:
+        print(f"Unsupported architecture: {arch}")
+        return
 ```
 
 
