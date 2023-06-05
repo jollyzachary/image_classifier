@@ -59,3 +59,11 @@ matplotlib
 PIL
 License
 This project is licensed under the MIT License.
+
+## Authors
+
+- Zachary Jolly
+
+## Acknowledgments
+
+- Udacity for providing the project and the workspace for the project
