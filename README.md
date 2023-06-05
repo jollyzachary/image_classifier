@@ -47,9 +47,10 @@ To use the image classification program, follow these steps:
 # model = models.vgg16(weights=VGG16_Weights.DEFAULT)
 model = models.vgg16(pretrained=True)
 Make sure to comment out the line model = models.vgg16(weights=VGG16_Weights.DEFAULT) by adding a # at the beginning of the line, and uncomment the line model = models.vgg16(pretrained=True) by removing the # at the beginning of the line.
+```
 
 
-Dependencies
+## Dependencies
 Python 3.x
 PyTorch
 torchvision
