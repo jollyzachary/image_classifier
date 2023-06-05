@@ -7,7 +7,7 @@ from checkpoint import save_checkpoint
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="train.py")
     parser.add_argument('data_directory', type=str, help='Data directory')
-    parser.add_argument('--save_dir', type=str, default=None, help='Directory to save checkpoints')
+    parser.add_argument('--save_dir', type=str, default='.', help='Directory to save checkpoints')
     parser.add_argument('--arch', dest="arch", action="store", default="vgg16", type=str)
     parser.add_argument('--learning_rate', dest="learning_rate", action="store", default=0.001)
     parser.add_argument('--hidden_units', type=int, dest="hidden_units", action="store", default=120)
