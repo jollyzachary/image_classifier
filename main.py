@@ -5,14 +5,19 @@ import model
 import testing
 import checkpoint
 import image_processing
+import torch
 
 def main():
     parser = argparse.ArgumentParser(description='Train a model or make a prediction.')
     parser.add_argument('--train', action='store_true', help='Train a new model')
     parser.add_argument('--predict', type=str, help='Make a prediction')
     parser.add_argument('--checkpoint', type=str, help='Model checkpoint')
-    # Add other command line arguments here
+    parser.add_argument('--gpu', action='store_true', help='Use GPU for prediction')
+    # Add other command line arguments here if more desired
     args = parser.parse_args()
+
+    # Define device
+    device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
 
     if args.train:
         # Load and preprocess the image dataset
@@ -31,6 +36,7 @@ def main():
     elif args.predict:
         # Load the checkpoint
         model, criterion, optimizer = checkpoint.load_checkpoint(args.checkpoint)
+        model = model.to(device)
 
         # Image processing
         tensor_image, pil_image = image_processing.process_image(args.predict)
