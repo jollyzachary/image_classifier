@@ -72,4 +72,3 @@ def display_image_predictions(image, probs, flowers):
     plt.tight_layout()
     plt.show()
 
-
