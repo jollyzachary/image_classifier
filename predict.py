@@ -10,7 +10,7 @@ def predict(image_path, model, topk=5):
     model.to(device)
     model.eval()
     with torch.no_grad():
-        image, _ = process_image(image_path)  # assuming process_image returns a tensor and a PIL image
+        image, _ = process_image(image_path)  # process_image returns a tensor and a PIL image
         image = image.unsqueeze(0)
         image = image.to(device)
         output = model.forward(image)
