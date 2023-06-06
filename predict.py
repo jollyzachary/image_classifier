@@ -10,8 +10,7 @@ def predict(image_path, model, topk=5):
     model.to(device)
     model.eval()
     with torch.no_grad():
-        image = process_image(image_path)
-        image = torch.from_numpy(image).type(torch.FloatTensor)
+        image, _ = process_image(image_path)  # assuming process_image returns a tensor and a PIL image
         image = image.unsqueeze(0)
         image = image.to(device)
         output = model.forward(image)
@@ -32,12 +31,13 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true', help='Use GPU for prediction')
     parser.add_argument('--category_names', type=str, help='Path to JSON file containing category names')
     args = parser.parse_args()
+    
+    # Define device
+    device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
 
     # Load the checkpoint
     model, criterion, optimizer = load_checkpoint(args.checkpoint)
-
-    # Define device
-    device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
+    model = model.to(device)
 
     # Load category names
     if args.category_names:
@@ -52,4 +52,3 @@ if __name__ == "__main__":
     print("Probabilities:", probs)
     print("Classes:", classes)
     print("Flowers:", flowers)
-
