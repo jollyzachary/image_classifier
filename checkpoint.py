@@ -28,4 +28,4 @@ def load_checkpoint(filepath):
     for param in model.parameters():
         param.requires_grad = False
         
-    return checkpoint, criterion, optimizer
+    return model, criterion, optimizer
