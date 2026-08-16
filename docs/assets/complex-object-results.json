@@ -1,0 +1,100 @@
+{
+  "model": "google/siglip2-base-patch16-224",
+  "device": "mps",
+  "candidate_labels": [
+    "fire truck",
+    "espresso machine",
+    "typewriter",
+    "steam locomotive",
+    "microscope",
+    "helicopter cockpit",
+    "vintage camera",
+    "saxophone"
+  ],
+  "predictions": [
+    {
+      "image": "data/complex-object-demo/fire-engine.jpg",
+      "results": [
+        {
+          "label": "fire truck",
+          "score": 0.7109600305557251
+        },
+        {
+          "label": "steam locomotive",
+          "score": 3.094672592851566e-06
+        },
+        {
+          "label": "vintage camera",
+          "score": 2.0231666439940454e-06
+        },
+        {
+          "label": "helicopter cockpit",
+          "score": 1.5600093092871248e-06
+        }
+      ]
+    },
+    {
+      "image": "data/complex-object-demo/espresso-machine.jpg",
+      "results": [
+        {
+          "label": "espresso machine",
+          "score": 0.4601178467273712
+        },
+        {
+          "label": "typewriter",
+          "score": 2.001468965318054e-05
+        },
+        {
+          "label": "vintage camera",
+          "score": 6.116457370808348e-06
+        },
+        {
+          "label": "microscope",
+          "score": 4.181484655418899e-06
+        }
+      ]
+    },
+    {
+      "image": "data/complex-object-demo/typewriter.jpg",
+      "results": [
+        {
+          "label": "typewriter",
+          "score": 0.3059324026107788
+        },
+        {
+          "label": "vintage camera",
+          "score": 8.866193820722401e-05
+        },
+        {
+          "label": "microscope",
+          "score": 2.6571226044325158e-05
+        },
+        {
+          "label": "espresso machine",
+          "score": 2.6567298846202902e-05
+        }
+      ]
+    },
+    {
+      "image": "data/complex-object-demo/steam-locomotive.jpg",
+      "results": [
+        {
+          "label": "steam locomotive",
+          "score": 0.1451893150806427
+        },
+        {
+          "label": "helicopter cockpit",
+          "score": 0.014460813254117966
+        },
+        {
+          "label": "fire truck",
+          "score": 0.00020013174798805267
+        },
+        {
+          "label": "microscope",
+          "score": 8.030657045310363e-05
+        }
+      ]
+    }
+  ]
+}

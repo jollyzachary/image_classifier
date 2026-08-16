@@ -23,6 +23,21 @@ def build_parser() -> argparse.ArgumentParser:
         default="./docs/assets/open-vocabulary-demo.png",
         help="Destination for the rendered demonstration.",
     )
+    parser.add_argument(
+        "--title",
+        default="OPEN-VOCABULARY CLASSIFICATION",
+        help="Figure title.",
+    )
+    parser.add_argument(
+        "--subtitle",
+        default="One model · eight new concepts · no task-specific training",
+        help="Figure subtitle.",
+    )
+    parser.add_argument(
+        "--footer",
+        default="SIGLIP 2  /  LOCAL INFERENCE",
+        help="Figure footer.",
+    )
     return parser
 
 
@@ -36,7 +51,14 @@ def load_payload(path: Path) -> dict[str, Any]:
     return payload
 
 
-def render(payload: dict[str, Any], destination: Path) -> None:
+def render(
+    payload: dict[str, Any],
+    destination: Path,
+    *,
+    title: str = "OPEN-VOCABULARY CLASSIFICATION",
+    subtitle: str = "One model · eight new concepts · no task-specific training",
+    footer: str = "SIGLIP 2  /  LOCAL INFERENCE",
+) -> None:
     predictions = payload["predictions"]
     if len(predictions) != 4:
         raise ValueError("results must contain exactly four predictions")
@@ -72,7 +94,7 @@ def render(payload: dict[str, Any], destination: Path) -> None:
             spine.set_visible(False)
 
     figure.suptitle(
-        "OPEN-VOCABULARY CLASSIFICATION",
+        title,
         x=0.055,
         y=0.975,
         ha="left",
@@ -83,14 +105,14 @@ def render(payload: dict[str, Any], destination: Path) -> None:
     figure.text(
         0.055,
         0.925,
-        "One model · eight new concepts · no task-specific training",
+        subtitle,
         color="#8d98a7",
         fontsize=12,
     )
     figure.text(
         0.945,
         0.035,
-        "SIGLIP 2  /  LOCAL INFERENCE",
+        footer,
         ha="right",
         color="#687382",
         fontsize=9,
@@ -112,7 +134,13 @@ def main() -> int:
     args = build_parser().parse_args()
     payload = load_payload(Path(args.results).expanduser())
     destination = Path(args.output).expanduser()
-    render(payload, destination)
+    render(
+        payload,
+        destination,
+        title=args.title,
+        subtitle=args.subtitle,
+        footer=args.footer,
+    )
     print(f"Rendered open-vocabulary demonstration: {destination}")
     return 0
 

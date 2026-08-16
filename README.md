@@ -37,6 +37,16 @@ corresponding images. The candidate set and ranked scores are stored in
 SigLIP scores are independent semantic-match scores. They are useful for
 ranking the supplied concepts and are not calibrated class probabilities.
 
+### Complex object recognition
+
+![Fire truck, espresso machine, typewriter, and steam locomotive classified with SigLIP 2](docs/assets/complex-object-demo.png)
+
+The same open-vocabulary engine ranked fire truck, espresso machine,
+typewriter, and steam locomotive first for four public reference images. Every
+image was evaluated against the same eight candidate concepts without
+task-specific training. The complete rankings are recorded in
+[`complex-object-results.json`](docs/assets/complex-object-results.json).
+
 ### Transfer-learning classifier
 
 ![Sunflower prediction from the trained VGG16 classifier](docs/assets/demo-prediction.png)
@@ -67,7 +77,9 @@ closed-set prediction, open-vocabulary inference, and scene analysis. Each
 workflow is available through the command line, and the general-analysis engine
 also exposes a small Python API.
 
-## Installation
+## Quick start
+
+### Manual setup
 
 Python 3.10 or newer is required.
 
@@ -99,6 +111,33 @@ On Windows PowerShell, activate the environment with:
 
 The first foundation-model run downloads model weights from Hugging Face and
 caches them locally.
+
+### Give this to your AI agent
+
+Copy this instruction into a coding agent with terminal access:
+
+```text
+Set up Image Classifier Engine from
+https://github.com/jollyzachary/image_classifier on this computer.
+
+Read README.md first. Detect the operating system and verify that Git and
+Python 3.10 or newer are available. Ask before installing system packages.
+
+If a checkout already exists, preserve its uncommitted changes and use it.
+Otherwise, clone the repository. Create an isolated .venv, install
+requirements-vision.txt and requirements-dev.txt, then download the verified
+complex-object examples with:
+
+python scripts/download_complex_object_demo.py
+
+Run the four-image zero-shot example documented under "Reproduce the recorded
+examples," run the unit tests, and report the top match for each image plus the
+paths to the generated JSON and figure.
+
+Keep downloaded images, model caches, checkpoints, generated artifacts,
+credentials, and machine-specific paths out of Git. Do not commit, push, or
+change system settings.
+```
 
 ## Usage
 
@@ -223,6 +262,31 @@ python scripts/render_zero_shot_demo.py \
 The downloader verifies every source image against its recorded SHA-256 digest.
 The source images remain outside version control.
 
+### Complex objects
+
+```bash
+python scripts/download_complex_object_demo.py
+
+python main.py zero-shot \
+  data/complex-object-demo/fire-engine.jpg \
+  data/complex-object-demo/espresso-machine.jpg \
+  data/complex-object-demo/typewriter.jpg \
+  data/complex-object-demo/steam-locomotive.jpg \
+  --labels-file examples/complex-object-labels.txt \
+  --top-k 4 \
+  --device auto \
+  --json docs/assets/complex-object-results.json
+
+python scripts/render_zero_shot_demo.py \
+  --results docs/assets/complex-object-results.json \
+  --output docs/assets/complex-object-demo.png \
+  --title "COMPLEX OBJECT RECOGNITION" \
+  --subtitle "One model · eight candidate concepts · four correct top matches"
+```
+
+The example downloader records each source URL and verifies each file before
+inference. The images remain outside version control.
+
 ### Transfer learning
 
 ```bash
@@ -321,6 +385,16 @@ The recorded examples use the public-domain
 [Retro old car](https://commons.wikimedia.org/wiki/File:Retro_old_car_oldtimer.jpg)
 photographs, plus the CC0
 [Cup Coffee](https://commons.wikimedia.org/wiki/File:Cup_Coffee.jpg) photograph.
+
+The complex-object example uses the public-domain
+[Air Force fire truck](https://commons.wikimedia.org/wiki/File:Air_Force_fire_truck.jpg)
+and
+[steam locomotive](https://commons.wikimedia.org/wiki/File:Steam_locomotive_(1).jpg)
+photographs, plus the CC0
+[espresso machine](https://commons.wikimedia.org/wiki/File:Espressso_machine_2014.JPG)
+and
+[National Typewriter No. 5](https://commons.wikimedia.org/wiki/File:National_Typewriter_No5,_foto.JPG)
+photographs.
 
 ## License
 
