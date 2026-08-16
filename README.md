@@ -1,3 +1,5 @@
+![Image Classifier Engine vision mark](docs/assets/image-classifier-engine-hero-v2.png)
+
 # Image Classifier Engine
 
 [![CI](https://github.com/jollyzachary/image_classifier/actions/workflows/ci.yml/badge.svg)](https://github.com/jollyzachary/image_classifier/actions/workflows/ci.yml)
