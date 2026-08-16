@@ -29,9 +29,13 @@ def build_model(
 
     if architecture not in SUPPORTED_ARCHITECTURES:
         supported = ", ".join(SUPPORTED_ARCHITECTURES)
-        raise ValueError(f"unsupported architecture {architecture!r}; choose {supported}")
+        raise ValueError(
+            f"unsupported architecture {architecture!r}; choose {supported}"
+        )
     if hidden_units < 1 or output_size < 2:
-        raise ValueError("hidden_units must be positive and output_size must be at least 2")
+        raise ValueError(
+            "hidden_units must be positive and output_size must be at least 2"
+        )
 
     weights = models.VGG16_Weights.DEFAULT if pretrained else None
     network = models.vgg16(weights=weights)

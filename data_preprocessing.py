@@ -67,9 +67,7 @@ def load_and_preprocess(
         raise ValueError("the dataset must contain at least two classes")
     for split_name, split_data in (("valid", valid_data), ("test", test_data)):
         if split_data.class_to_idx != train_data.class_to_idx:
-            raise ValueError(
-                f"{split_name} classes must match the train split exactly"
-            )
+            raise ValueError(f"{split_name} classes must match the train split exactly")
 
     loader_options = {
         "batch_size": batch_size,

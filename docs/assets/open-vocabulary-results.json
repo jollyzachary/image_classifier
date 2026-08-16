@@ -1,0 +1,84 @@
+{
+  "model": "google/siglip2-base-patch16-224",
+  "device": "mps",
+  "candidate_labels": [
+    "sunflower",
+    "tabby cat",
+    "cup of coffee",
+    "vintage automobile",
+    "mountain landscape",
+    "passenger airplane",
+    "plate of food",
+    "modern skyscraper"
+  ],
+  "predictions": [
+    {
+      "image": "data/open-vocabulary-demo/sunflower.jpg",
+      "results": [
+        {
+          "label": "sunflower",
+          "score": 0.11657138168811798
+        },
+        {
+          "label": "mountain landscape",
+          "score": 2.0542333913908806e-06
+        },
+        {
+          "label": "plate of food",
+          "score": 1.7200143247464439e-06
+        }
+      ]
+    },
+    {
+      "image": "data/open-vocabulary-demo/tabby-cat.jpg",
+      "results": [
+        {
+          "label": "tabby cat",
+          "score": 0.781521201133728
+        },
+        {
+          "label": "sunflower",
+          "score": 3.531423135427758e-05
+        },
+        {
+          "label": "cup of coffee",
+          "score": 1.1198662832612172e-05
+        }
+      ]
+    },
+    {
+      "image": "data/open-vocabulary-demo/coffee-cup.jpg",
+      "results": [
+        {
+          "label": "cup of coffee",
+          "score": 0.43913936614990234
+        },
+        {
+          "label": "plate of food",
+          "score": 3.978681706939824e-05
+        },
+        {
+          "label": "sunflower",
+          "score": 2.876251528505236e-06
+        }
+      ]
+    },
+    {
+      "image": "data/open-vocabulary-demo/vintage-car.jpg",
+      "results": [
+        {
+          "label": "vintage automobile",
+          "score": 0.033020444214344025
+        },
+        {
+          "label": "passenger airplane",
+          "score": 1.2204518498037942e-05
+        },
+        {
+          "label": "sunflower",
+          "score": 3.0957335184211843e-07
+        }
+      ]
+    }
+  ]
+}

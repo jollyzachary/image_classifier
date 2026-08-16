@@ -1,0 +1,96 @@
+{
+  "architecture": "vgg16",
+  "device": "mps",
+  "seed": 42,
+  "epochs": 12,
+  "learning_rate": 0.001,
+  "hidden_units": 256,
+  "class_to_idx": {
+    "54": 0,
+    "73": 1,
+    "77": 2
+  },
+  "samples": {
+    "train": 30,
+    "validation": 30,
+    "test": 60
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "training_loss": 1.844985047976176,
+      "validation_loss": 2.3135225822528205,
+      "validation_accuracy": 0.7
+    },
+    {
+      "epoch": 2,
+      "training_loss": 1.2035204569498699,
+      "validation_loss": 0.20712604971292117,
+      "validation_accuracy": 0.9
+    },
+    {
+      "epoch": 3,
+      "training_loss": 0.19118345777193704,
+      "validation_loss": 0.019332754049780004,
+      "validation_accuracy": 1.0
+    },
+    {
+      "epoch": 4,
+      "training_loss": 0.2724660799528162,
+      "validation_loss": 0.048392002654907174,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 5,
+      "training_loss": 0.02022688179810454,
+      "validation_loss": 0.035968510045601455,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 6,
+      "training_loss": 0.0009392551607258307,
+      "validation_loss": 0.028431125093106857,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 7,
+      "training_loss": 0.027164419181644917,
+      "validation_loss": 0.04503854234121718,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 8,
+      "training_loss": 0.0037614957933935025,
+      "validation_loss": 0.057584727530989234,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 9,
+      "training_loss": 0.204336907698386,
+      "validation_loss": 0.10398923689595918,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 10,
+      "training_loss": 0.0004065754177039101,
+      "validation_loss": 0.20981927314445178,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 11,
+      "training_loss": 0.0004168212247653476,
+      "validation_loss": 0.2919608155879511,
+      "validation_accuracy": 0.9666666666666667
+    },
+    {
+      "epoch": 12,
+      "training_loss": 0.0626593815909473,
+      "validation_loss": 0.28623210986434816,
+      "validation_accuracy": 0.9666666666666667
+    }
+  ],
+  "test": {
+    "loss": 0.09855064246664824,
+    "accuracy": 0.9666666666666667
+  }
+}

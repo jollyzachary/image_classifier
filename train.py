@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 import torch
@@ -9,6 +11,7 @@ from torch import nn, optim
 from checkpoint import save_checkpoint
 from data_preprocessing import load_and_preprocess
 from model import SUPPORTED_ARCHITECTURES, build_model, evaluate_model, train_model
+from runtime import DEVICE_CHOICES, select_device
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,17 +40,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
+        "--metrics-output",
+        help="Optional path for machine-readable training and evaluation metrics.",
+    )
+    device_options = parser.add_mutually_exclusive_group()
+    device_options.add_argument(
+        "--device",
+        choices=DEVICE_CHOICES,
+        default="cpu",
+        help="Compute device (default: cpu; auto selects the best available device).",
+    )
+    device_options.add_argument(
         "--gpu",
         action="store_true",
-        help="Require CUDA instead of using the CPU.",
+        help="Equivalent to --device cuda.",
     )
     return parser
-
-
-def select_device(require_gpu: bool) -> torch.device:
-    if require_gpu and not torch.cuda.is_available():
-        raise RuntimeError("--gpu was requested, but CUDA is not available")
-    return torch.device("cuda" if require_gpu else "cpu")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -63,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    device = select_device(args.gpu)
+    device = select_device("cuda" if args.gpu else args.device)
     trainloader, validloader, testloader = load_and_preprocess(
         args.data_directory,
         batch_size=args.batch_size,
@@ -81,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     criterion = nn.NLLLoss()
     optimizer = optim.Adam(network.classifier.parameters(), lr=args.learning_rate)
 
-    train_model(
+    history = train_model(
         network,
         trainloader,
         validloader,
@@ -92,6 +100,34 @@ def main(argv: list[str] | None = None) -> int:
     )
     test_loss, test_accuracy = evaluate_model(network, testloader, criterion, device)
     print(f"Test loss {test_loss:.4f} | test accuracy {test_accuracy:.2%}")
+
+    if args.metrics_output:
+        metrics_path = Path(args.metrics_output).expanduser()
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        metrics = {
+            "architecture": args.arch,
+            "device": device.type,
+            "seed": args.seed,
+            "epochs": args.epochs,
+            "learning_rate": args.learning_rate,
+            "hidden_units": args.hidden_units,
+            "class_to_idx": trainloader.dataset.class_to_idx,
+            "samples": {
+                "train": len(trainloader.dataset),
+                "validation": len(validloader.dataset),
+                "test": len(testloader.dataset),
+            },
+            "history": [asdict(epoch_metrics) for epoch_metrics in history],
+            "test": {
+                "loss": test_loss,
+                "accuracy": test_accuracy,
+            },
+        }
+        metrics_path.write_text(
+            json.dumps(metrics, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(f"Saved metrics to {metrics_path}")
 
     checkpoint_path = Path(args.save_dir).expanduser() / "checkpoint.pth"
     saved_path = save_checkpoint(

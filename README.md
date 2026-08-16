@@ -1,78 +1,94 @@
 # Image Classifier Engine
 
-A local transfer-learning pipeline for training an image classifier on a
-folder-structured dataset and running top-k predictions from the command line.
+[![CI](https://github.com/jollyzachary/image_classifier/actions/workflows/ci.yml/badge.svg)](https://github.com/jollyzachary/image_classifier/actions/workflows/ci.yml)
 
-The maintained implementation uses a pretrained VGG16 backbone from
-TorchVision, replaces its classifier head for the target dataset, and stores a
-portable checkpoint containing model weights and class metadata. The project
-does not require a hosted service.
+A local computer vision toolkit for scene analysis, open-vocabulary
+classification, and custom transfer-learning models.
 
-## Capabilities
+- Florence-2 describes scenes, identifies a primary subject, and returns object
+  locations without a predefined label set.
+- SigLIP 2 ranks user-supplied concepts without training a new model.
+- VGG16 transfer learning trains a classifier for a folder-structured dataset
+  and saves a reusable checkpoint.
 
-- Loads separate training, validation, and test splits with `ImageFolder`.
-- Applies data augmentation during training and deterministic preprocessing for
-  evaluation.
-- Freezes VGG16 feature layers and trains a dataset-specific classifier head.
-- Reports validation metrics after every epoch and evaluates the final model on
-  the test split.
-- Saves architecture, hyperparameters, class mappings, model weights, and
-  optimizer state in one checkpoint.
-- Returns top-k predictions with optional human-readable category names.
-- Runs on CPU by default and supports CUDA when `--gpu` is supplied.
+All three workflows run on the local machine. No hosted inference service is
+required.
+
+## Results
+
+### General image analysis
+
+![Four images analyzed with Florence-2](docs/assets/classify-any-demo.png)
+
+Florence-2 identified the primary subject in four unrelated images and returned
+a scene description, detected objects, and bounding boxes. The complete output,
+including the pinned model revision, is stored in
+[`classify-any-results.json`](docs/assets/classify-any-results.json).
+
+### Open-vocabulary classification
+
+![Four images classified against the same candidate labels](docs/assets/open-vocabulary-demo.png)
+
+SigLIP 2 received the same eight candidate labels for four unrelated images. It
+ranked sunflower, tabby cat, cup of coffee, and vintage automobile first for the
+corresponding images. The candidate set and ranked scores are stored in
+[`open-vocabulary-results.json`](docs/assets/open-vocabulary-results.json).
+
+SigLIP scores are independent semantic-match scores. They are useful for
+ranking the supplied concepts and are not calibrated class probabilities.
+
+### Transfer-learning classifier
+
+![Sunflower prediction from the trained VGG16 classifier](docs/assets/demo-prediction.png)
+
+The reproducible training example uses three classes from the official Oxford
+102 Flowers splits: sunflower, water lily, and passion flower. A frozen VGG16
+feature extractor and a trained classifier head correctly identified 58 of 60
+held-out images, or 96.7 percent. A separate public-domain sunflower image was
+classified as sunflower with 99.98 percent probability.
+
+The training history, seed, architecture, sample counts, and test metrics are
+stored in [`demo-metrics.json`](docs/assets/demo-metrics.json). This compact run
+validates the training and inference pipeline for three selected classes; it is
+not a 102-class benchmark.
 
 ## Architecture
 
 ```text
-ImageFolder dataset
-        │
-        ├── train transforms ──┐
-        └── eval transforms  ──┤
-                               ▼
-                    frozen VGG16 features
-                               │
-                    trainable classifier head
-                               │
-                validation and test evaluation
-                               │
-             versioned checkpoint + class mapping
-                               │
-                     top-k image prediction
+Image -> Florence-2 -> caption + objects + primary subject
+
+Image + candidate labels -> SigLIP 2 -> ranked semantic matches
+
+Folder dataset -> VGG16 transfer learning -> checkpoint -> top-k prediction
 ```
 
-The implementation keeps data loading, model construction, training,
-checkpointing, and inference separate. That makes the components usable from
-Python as well as through the command-line entry points, without introducing a
-framework or service layer that the project does not need.
+The modules separate data loading, model construction, training, checkpointing,
+closed-set prediction, open-vocabulary inference, and scene analysis. Each
+workflow is available through the command line, and the general-analysis engine
+also exposes a small Python API.
 
-## Project structure
+## Installation
 
-```text
-data_preprocessing.py  Dataset validation, transforms, and loaders
-model.py               Model construction, training, and evaluation
-checkpoint.py          Portable checkpoint save and load functions
-image_processing.py    Inference preprocessing and visualization
-train.py               Training command
-predict.py             Prediction command
-main.py                Unified command dispatcher
-cat_to_name.json       Oxford 102 Flowers category labels
-notebooks/             Archived coursework notebook
-tests/                 Lightweight unit tests
-```
-
-## Requirements
-
-- Python 3.10 or newer
-- PyTorch and TorchVision
-- NumPy, Pillow, and Matplotlib
-
-Create an isolated environment and install the dependencies:
+Python 3.10 or newer is required.
 
 ```bash
+git clone https://github.com/jollyzachary/image_classifier.git
+cd image_classifier
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+```
+
+Install the core transfer-learning dependencies:
+
+```bash
 python -m pip install -r requirements.txt
+```
+
+Install the additional dependencies for Florence-2 and SigLIP 2:
+
+```bash
+python -m pip install -r requirements-vision.txt
 ```
 
 On Windows PowerShell, activate the environment with:
@@ -81,95 +97,230 @@ On Windows PowerShell, activate the environment with:
 .\.venv\Scripts\Activate.ps1
 ```
 
-## Dataset layout
+The first foundation-model run downloads model weights from Hugging Face and
+caches them locally.
 
-The dataset root must contain `train`, `valid`, and `test` directories. Each
-split uses one subdirectory per class:
+## Usage
+
+### Analyze an image
+
+No checkpoint or candidate labels are required.
+
+```bash
+python main.py classify-any ./example.jpg \
+  --device auto \
+  --json ./artifacts/analysis.json \
+  --output ./artifacts/analysis.png
+```
+
+Supply additional image paths to reuse one loaded model across a batch. Use
+`--output-dir` instead of `--output` when processing multiple images.
+
+The same engine can be embedded in another Python project:
+
+```python
+from classify_any import AnyImageClassifier
+
+classifier = AnyImageClassifier(device="auto")
+result = classifier.classify("example.jpg")
+
+print(result["primary_subject"])
+print(result["description"])
+print(result["objects"])
+```
+
+`classify_many()` processes several paths with the same loaded model.
+
+### Rank candidate concepts
+
+Provide at least two labels:
+
+```bash
+python main.py zero-shot ./example.jpg \
+  --labels "tabby cat" "golden retriever" "red fox" "snow leopard" \
+  --top-k 3 \
+  --device auto \
+  --output ./artifacts/open-vocabulary-prediction.png
+```
+
+For repeatable or larger label sets, place one label per line in a text file and
+use `--labels-file`. Multiple image paths can be processed in one command.
+`--output-dir` saves one visualization per image, and `--json` saves structured
+results.
+
+### Train a custom classifier
+
+The dataset root must contain matching `train`, `valid`, and `test` class
+directories:
 
 ```text
 dataset/
-├── train/
-│   ├── class_a/
-│   └── class_b/
-├── valid/
-│   ├── class_a/
-│   └── class_b/
-└── test/
-    ├── class_a/
-    └── class_b/
+|-- train/
+|   |-- class_a/
+|   `-- class_b/
+|-- valid/
+|   |-- class_a/
+|   `-- class_b/
+`-- test/
+    |-- class_a/
+    `-- class_b/
 ```
 
-The original project used the
-[Oxford 102 Flowers dataset](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/).
-Dataset files and trained checkpoints are intentionally excluded from the
-repository.
-
-## Train a classifier
+Train and save a checkpoint:
 
 ```bash
-python train.py ./dataset \
+python main.py train ./dataset \
   --epochs 5 \
   --learning-rate 0.001 \
   --hidden-units 512 \
+  --device auto \
   --save-dir ./artifacts
 ```
 
-Add `--gpu` to require CUDA. The command fails clearly if CUDA is requested but
-unavailable.
-
-The same operation is available through the unified entry point:
+Run a prediction:
 
 ```bash
-python main.py train ./dataset --epochs 5 --save-dir ./artifacts
-```
-
-## Run a prediction
-
-```bash
-python predict.py ./example.jpg ./artifacts/checkpoint.pth \
+python main.py predict ./example.jpg ./artifacts/checkpoint.pth \
   --top-k 5 \
-  --category-names cat_to_name.json
+  --category-names cat_to_name.json \
+  --output ./artifacts/prediction.png
 ```
 
-Add `--show` to display the image and probability chart, or `--gpu` to require
-CUDA. The unified form is:
+Device selection supports `auto`, `cpu`, `cuda`, and `mps`. The `--gpu` option
+is retained as a shortcut for `--device cuda`.
+
+## Reproduce the recorded examples
+
+### General analysis and open vocabulary
 
 ```bash
-python main.py predict ./example.jpg ./artifacts/checkpoint.pth --top-k 5
+python -m pip install -r requirements-vision.txt
+python scripts/download_zero_shot_demo.py
+
+python main.py classify-any \
+  data/open-vocabulary-demo/sunflower.jpg \
+  data/open-vocabulary-demo/tabby-cat.jpg \
+  data/open-vocabulary-demo/coffee-cup.jpg \
+  data/open-vocabulary-demo/vintage-car.jpg \
+  --device auto \
+  --json docs/assets/classify-any-results.json
+
+python main.py zero-shot \
+  data/open-vocabulary-demo/sunflower.jpg \
+  data/open-vocabulary-demo/tabby-cat.jpg \
+  data/open-vocabulary-demo/coffee-cup.jpg \
+  data/open-vocabulary-demo/vintage-car.jpg \
+  --labels-file examples/open-vocabulary-labels.txt \
+  --top-k 3 \
+  --device auto \
+  --json docs/assets/open-vocabulary-results.json
+
+python scripts/render_classify_any_demo.py
+python scripts/render_zero_shot_demo.py \
+  --results docs/assets/open-vocabulary-results.json
 ```
 
-## Checkpoints and safety
+The downloader verifies every source image against its recorded SHA-256 digest.
+The source images remain outside version control.
 
-Checkpoints contain tensor weights and the metadata needed to reconstruct the
-classifier. Load only checkpoints you created or obtained from a trusted
-source. No pretrained project checkpoint is distributed in this repository.
+### Transfer learning
 
-The checkpoint format is versioned and stores state dictionaries rather than
-serialized model objects. A checkpoint records the architecture, classifier
-dimensions, training settings, and class-to-index mapping required for
-reconstruction.
+```bash
+python -m pip install -r requirements-demo.txt
+python scripts/prepare_flower_demo.py
 
-## Legacy notebook
+python train.py ./data/flowers-demo \
+  --epochs 12 \
+  --hidden-units 256 \
+  --batch-size 10 \
+  --seed 42 \
+  --device auto \
+  --save-dir ./artifacts/demo \
+  --metrics-output ./artifacts/demo-metrics.json
 
-The original Udacity project notebook is preserved in `notebooks/` with its
-execution outputs removed. It documents the project's starting point; the
-maintained command-line modules are the canonical implementation.
+python scripts/download_demo_image.py
+python predict.py ./data/demo-input/sunflower.jpg \
+  ./artifacts/demo/checkpoint.pth \
+  --top-k 3 \
+  --category-names cat_to_name.json \
+  --device auto \
+  --output ./artifacts/demo-prediction.png
+```
+
+The preparation script uses the published Oxford 102 Flowers splits and writes
+the selected classes into the directory structure expected by the trainer.
+Datasets, checkpoints, downloaded weights, and generated run artifacts are
+excluded from version control.
+
+## Project structure
+
+```text
+checkpoint.py          Checkpoint serialization and reconstruction
+classify_any.py        Florence-2 scene analysis and Python API
+data_preprocessing.py  Dataset validation, transforms, and data loaders
+image_processing.py    Prediction preprocessing and visualization
+label_mapping.py       Category-name mapping loader
+main.py                Unified command dispatcher
+model.py               VGG16 model construction, training, and evaluation
+predict.py             Checkpoint prediction command
+runtime.py             CPU, CUDA, and Apple Silicon device selection
+train.py               Transfer-learning command
+zero_shot.py           SigLIP 2 batch classification
+docs/assets/           Recorded outputs and figures
+examples/              Candidate-label examples
+notebooks/             Project lineage notebook
+scripts/               Reproducible data and figure utilities
+tests/                 Unit tests
+```
+
+## Model and checkpoint trust
+
+The Florence-2 loader executes model code supplied by its Hugging Face
+repository. The implementation pins the model to an immutable revision and
+loads safetensor weights. Review provenance before changing the model identifier
+or revision.
+
+PyTorch checkpoints should also come from a trusted source. This repository
+stores state dictionaries and reconstruction metadata rather than serialized
+model objects, and it does not distribute a trained checkpoint.
 
 ## Development
 
-Install the development dependency and run the lightweight checks:
-
 ```bash
 python -m pip install -r requirements-dev.txt
-python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest -q
 ```
 
-## Acknowledgments
+Continuous integration runs compilation, linting, formatting, and unit tests on
+every pull request and every push to `main`.
 
-This project began as part of Udacity's AI Programming with Python Nanodegree.
-It uses PyTorch, TorchVision pretrained weights, and the Oxford 102 Flowers
-dataset created by Maria-Elena Nilsback and Andrew Zisserman. Third-party data
-and model weights remain subject to their respective terms.
+## Project history
+
+The project began in 2023 as part of Udacity's AI Programming with Python
+Nanodegree. The current repository expands that transfer-learning exercise into
+three maintained workflows with repeatable local examples. The
+[project lineage notebook](notebooks/udacity_project_archive.ipynb) records that
+progression.
+
+## Data and model attribution
+
+This project uses PyTorch, TorchVision pretrained weights, Google's
+Apache-2.0-licensed
+[SigLIP 2 model](https://huggingface.co/google/siglip2-base-patch16-224),
+Microsoft's MIT-licensed
+[Florence-2 model](https://huggingface.co/microsoft/Florence-2-base-ft), and the
+[Oxford 102 Flowers dataset](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/)
+created by Maria-Elena Nilsback and Andrew Zisserman. Third-party data and model
+weights remain subject to their respective terms.
+
+The recorded examples use the public-domain
+[Sunflower close-up](https://commons.wikimedia.org/wiki/File:Sunflower_-a_close_up_view.jpg),
+[Tabby cat](https://commons.wikimedia.org/wiki/File:Tabby-cat.jpg), and
+[Retro old car](https://commons.wikimedia.org/wiki/File:Retro_old_car_oldtimer.jpg)
+photographs, plus the CC0
+[Cup Coffee](https://commons.wikimedia.org/wiki/File:Cup_Coffee.jpg) photograph.
 
 ## License
 

@@ -59,8 +59,7 @@ def load_checkpoint(
     version = checkpoint.get("checkpoint_version")
     if version != CHECKPOINT_VERSION:
         raise ValueError(
-            f"unsupported checkpoint version {version!r}; "
-            f"expected {CHECKPOINT_VERSION}"
+            f"unsupported checkpoint version {version!r}; expected {CHECKPOINT_VERSION}"
         )
     required = {
         "architecture",
