@@ -1,118 +1,139 @@
-from imports import *
-from image_processing import process_image
-from torchvision.models import vgg16, alexnet
-from torchvision.models.vgg import VGG16_Weights
-import label_mapping
+from __future__ import annotations
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-cat_to_name = label_mapping.load_label_mapping()
+from dataclasses import dataclass
 
-def build_and_train_model(trainloader, validloader, arch, learning_rate, hidden_units, epochs, gpu):
-    # Load the pre-trained model based on the architecture specified
-    if arch == 'vgg16':
-        model = models.vgg16(weights=VGG16_Weights.DEFAULT)
-        #model = models.vgg16(pretrained=True)
-    elif arch == 'alexnet':
-        model = models.alexnet(pretrained=True)
-    else:
-        print(f"Unsupported architecture: {arch}")
-        return
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from torchvision import models
 
-    # Freeze the parameters of the pre-trained model
-    for param in model.parameters():
-        param.requires_grad = False
+SUPPORTED_ARCHITECTURES = ("vgg16",)
 
-    # Define a new classifier
-    classifier = nn.Sequential(
-        nn.Linear(25088, hidden_units),
+
+@dataclass(frozen=True)
+class EpochMetrics:
+    epoch: int
+    training_loss: float
+    validation_loss: float
+    validation_accuracy: float
+
+
+def build_model(
+    architecture: str,
+    *,
+    hidden_units: int,
+    output_size: int,
+    pretrained: bool = True,
+) -> nn.Module:
+    """Build a VGG16 transfer-learning classifier."""
+
+    if architecture not in SUPPORTED_ARCHITECTURES:
+        supported = ", ".join(SUPPORTED_ARCHITECTURES)
+        raise ValueError(f"unsupported architecture {architecture!r}; choose {supported}")
+    if hidden_units < 1 or output_size < 2:
+        raise ValueError("hidden_units must be positive and output_size must be at least 2")
+
+    weights = models.VGG16_Weights.DEFAULT if pretrained else None
+    network = models.vgg16(weights=weights)
+    for parameter in network.features.parameters():
+        parameter.requires_grad = False
+
+    input_features = network.classifier[0].in_features
+    network.classifier = nn.Sequential(
+        nn.Linear(input_features, hidden_units),
         nn.ReLU(),
-        nn.Dropout(0.2),
-        nn.Linear(hidden_units, 102),
-        nn.LogSoftmax(dim=1)
+        nn.Dropout(p=0.2),
+        nn.Linear(hidden_units, output_size),
+        nn.LogSoftmax(dim=1),
     )
+    return network
 
-    # Set the classifier for the model
-    model.classifier = classifier
 
-    # Replace the original classifier with the new classifier
-    model.classifier = classifier
+def evaluate_model(
+    network: nn.Module,
+    loader: DataLoader,
+    criterion: nn.Module,
+    device: torch.device,
+) -> tuple[float, float]:
+    """Return average loss and accuracy for a dataset loader."""
 
-    # Define the criterion (Negative Log Likelihood Loss)
-    criterion = nn.NLLLoss()
+    network.eval()
+    total_loss = 0.0
+    correct = 0
+    sample_count = 0
 
-    # Define the optimizer (Adam optimizer)
-    optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
+    with torch.no_grad():
+        for inputs, labels in loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            log_probabilities = network(inputs)
+            loss = criterion(log_probabilities, labels)
 
-    # Move the model to the device available (either cpu or cuda)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model.to(device);
+            batch_size = labels.size(0)
+            total_loss += loss.item() * batch_size
+            correct += (log_probabilities.argmax(dim=1) == labels).sum().item()
+            sample_count += batch_size
 
-    # Train the classifier
-    epochs = 5
-    steps = 0
-    running_loss = 0
-    print_every = 5
-    for epoch in range(epochs):
+    if sample_count == 0:
+        raise ValueError("cannot evaluate an empty dataset")
+    return total_loss / sample_count, correct / sample_count
+
+
+def train_model(
+    network: nn.Module,
+    trainloader: DataLoader,
+    validloader: DataLoader,
+    criterion: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    device: torch.device,
+    *,
+    epochs: int,
+) -> list[EpochMetrics]:
+    """Train the classifier head and report validation metrics each epoch."""
+
+    if epochs < 1:
+        raise ValueError("epochs must be at least 1")
+
+    history: list[EpochMetrics] = []
+    network.to(device)
+
+    for epoch in range(1, epochs + 1):
+        network.train()
+        running_loss = 0.0
+        sample_count = 0
+
         for inputs, labels in trainloader:
-            steps += 1
-            # Move input and label tensors to the device
-            inputs, labels = inputs.to(device), labels.to(device)
-            
-            # Clear the gradients
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
             optimizer.zero_grad()
-            
-            # Forward pass, then backward pass, then update weights
-            logps = model.forward(inputs)
-            loss = criterion(logps, labels)
+            log_probabilities = network(inputs)
+            loss = criterion(log_probabilities, labels)
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
-            
-            # Validation step
-            if steps % print_every == 0:
-                valid_loss = 0
-                accuracy = 0
-                model.eval()
-                with torch.no_grad():
-                    for inputs, labels in validloader:
-                        inputs, labels = inputs.to(device), labels.to(device)
-                        logps = model.forward(inputs)
-                        batch_loss = criterion(logps, labels)
+            batch_size = labels.size(0)
+            running_loss += loss.item() * batch_size
+            sample_count += batch_size
 
-                        valid_loss += batch_loss.item()
+        if sample_count == 0:
+            raise ValueError("cannot train on an empty dataset")
 
-                        # Calculate accuracy
-                        ps = torch.exp(logps)
-                        top_p, top_class = ps.topk(1, dim=1)
-                        equals = top_class == labels.view(*top_class.shape)
-                        accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
+        validation_loss, validation_accuracy = evaluate_model(
+            network, validloader, criterion, device
+        )
+        metrics = EpochMetrics(
+            epoch=epoch,
+            training_loss=running_loss / sample_count,
+            validation_loss=validation_loss,
+            validation_accuracy=validation_accuracy,
+        )
+        history.append(metrics)
+        print(
+            f"Epoch {epoch}/{epochs} | "
+            f"train loss {metrics.training_loss:.4f} | "
+            f"validation loss {metrics.validation_loss:.4f} | "
+            f"validation accuracy {metrics.validation_accuracy:.2%}"
+        )
 
-                print(f"Epoch {epoch+1}/{epochs}.. "
-                    f"Train loss: {running_loss/print_every:.3f}.. "
-                    f"Validation loss: {valid_loss/len(validloader):.3f}.. "
-                    f"Validation accuracy: {accuracy/len(validloader):.3f}")
-                running_loss = 0
-                model.train()
-    return model, criterion, optimizer
-
-def predict(image_path, model, topk=5):
-    ''' Predict the class (or classes) of an image using a trained deep learning model.
-    '''
-    model.to(device)
-    model.eval()
-    with torch.no_grad():
-        image = process_image(image_path)
-        image = torch.from_numpy(image).type(torch.FloatTensor)
-        image = image.unsqueeze(0)
-        image = image.to(device)
-        output = model.forward(image)
-        ps = torch.exp(output)
-        top_p, top_class = ps.topk(topk, dim=1)
-        top_p = top_p.cpu().numpy().tolist()[0]
-        top_class = top_class.cpu().numpy().tolist()[0]
-        idx_to_class = {value: key for key, value in model.class_to_idx.items()}
-        top_class = [idx_to_class[i] for i in top_class]
-        top_flowers = [cat_to_name[i] for i in top_class]
-        
-    return top_p, top_class, top_flowers
+    return history

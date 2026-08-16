@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+.DS_Store
+
+# Local datasets, model artifacts, and generated output
+data/
+dataset/
+flowers/
+artifacts/
+checkpoints/
+*.pth
+*.pt
+*.onnx
+
+# Build and editor output
+build/
+dist/
+*.egg-info/
+.idea/
+.vscode/

@@ -1,54 +1,109 @@
-import torch
-import argparse
-from checkpoint import load_checkpoint
-from image_processing import process_image
-import label_mapping
+from __future__ import annotations
 
-def predict(image_path, model, topk=5):
-    ''' Predict the class (or classes) of an image using a trained deep learning model.
-    '''
-    model.to(device)
-    model.eval()
+import argparse
+from pathlib import Path
+
+import torch
+from torch import nn
+
+from checkpoint import load_checkpoint
+from image_processing import display_predictions, process_image
+from label_mapping import load_label_mapping
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Predict image classes from a trained checkpoint."
+    )
+    parser.add_argument("image_path", help="Path to the image to classify.")
+    parser.add_argument("checkpoint", help="Path to a saved checkpoint.")
+    parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument(
+        "--category-names",
+        help="Optional JSON mapping from class identifiers to display names.",
+    )
+    parser.add_argument(
+        "--gpu",
+        action="store_true",
+        help="Require CUDA instead of using the CPU.",
+    )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Display the image and a probability chart.",
+    )
+    return parser
+
+
+def select_device(require_gpu: bool) -> torch.device:
+    if require_gpu and not torch.cuda.is_available():
+        raise RuntimeError("--gpu was requested, but CUDA is not available")
+    return torch.device("cuda" if require_gpu else "cpu")
+
+
+def predict(
+    image_path: str | Path,
+    network: nn.Module,
+    device: torch.device,
+    *,
+    top_k: int,
+    category_names: dict[str, str] | None = None,
+) -> tuple[list[float], list[str], list[str]]:
+    """Return probabilities, class identifiers, and display labels."""
+
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1")
+    class_to_idx = getattr(network, "class_to_idx", None)
+    if not class_to_idx:
+        raise ValueError("checkpoint does not include a class-to-index mapping")
+
+    tensor = process_image(image_path).unsqueeze(0).to(device)
+    network.eval()
     with torch.no_grad():
-        image, _ = process_image(image_path)  # process_image returns a tensor and a PIL image
-        image = image.unsqueeze(0)
-        image = image.to(device)
-        output = model.forward(image)
-        ps = torch.exp(output)
-        top_p, top_class = ps.topk(topk, dim=1)
-        top_p = top_p.cpu().numpy().tolist()[0]
-        top_class = top_class.cpu().numpy().tolist()[0]
-        idx_to_class = {value: key for key, value in model.class_to_idx.items()}
-        top_class = [idx_to_class[i] for i in top_class]
-        top_flowers = [cat_to_name[i] for i in top_class]
-        
-    return top_p, top_class, top_flowers
+        probabilities = torch.exp(network(tensor))
+
+    count = min(top_k, probabilities.size(1))
+    top_probabilities, top_indices = probabilities.topk(count, dim=1)
+    inverse_mapping = {int(index): str(label) for label, index in class_to_idx.items()}
+    try:
+        class_ids = [inverse_mapping[int(index)] for index in top_indices[0].cpu()]
+    except KeyError as error:
+        raise ValueError(
+            f"checkpoint class mapping has no label for output index {error.args[0]}"
+        ) from error
+    probability_values = [float(value) for value in top_probabilities[0].cpu()]
+    labels = [
+        category_names.get(class_id, class_id) if category_names else class_id
+        for class_id in class_ids
+    ]
+    return probability_values, class_ids, labels
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    device = select_device(args.gpu)
+    network, _ = load_checkpoint(args.checkpoint, device)
+    category_names = (
+        load_label_mapping(args.category_names) if args.category_names else None
+    )
+    probabilities, class_ids, labels = predict(
+        args.image_path,
+        network,
+        device,
+        top_k=args.top_k,
+        category_names=category_names,
+    )
+
+    print("rank\tprobability\tclass\tlabel")
+    for rank, (probability, class_id, label) in enumerate(
+        zip(probabilities, class_ids, labels), start=1
+    ):
+        print(f"{rank}\t{probability:.4f}\t{class_id}\t{label}")
+
+    if args.show:
+        display_predictions(args.image_path, probabilities, labels)
+    return 0
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Make a prediction with a trained model.')
-    parser.add_argument('image_path', type=str, help='Path to the image')
-    parser.add_argument('checkpoint', type=str, help='Path to the model checkpoint')
-    parser.add_argument('--gpu', action='store_true', help='Use GPU for prediction')
-    parser.add_argument('--category_names', type=str, help='Path to JSON file containing category names')
-    args = parser.parse_args()
-    
-    # Define device
-    device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
-
-    # Load the checkpoint
-    model, criterion, optimizer = load_checkpoint(args.checkpoint)
-    model = model.to(device)
-
-    # Load category names
-    if args.category_names:
-        cat_to_name = label_mapping.load_label_mapping(args.category_names)
-    else:
-        cat_to_name = label_mapping.load_label_mapping()
-
-    # Class prediction
-    probs, classes, flowers = predict(args.image_path, model)
-
-    # Print the results
-    print("Probabilities:", probs)
-    print("Classes:", classes)
-    print("Flowers:", flowers)
+    raise SystemExit(main())
